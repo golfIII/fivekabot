@@ -3,7 +3,16 @@ import { Command } from '@commands/handler.ts'
 
 import { getUserChannel, getUsersInChannel } from '@store/voice_state.ts'
 
-import { cooldownMap } from '@store/roulette_cooldown.ts'
+import { cooldownMap, saveCooldownMap } from '@store/roulette_cooldown.ts'
+
+const ROULETTE_COOLDOWN = 5 * 60 * 1000 // 5 minutes
+
+// Utility to convert ms to min, sec
+const toMinStr = (ms: number) => {
+    const minutes = Math.floor(ms / 1000 / 60)
+    const seconds = Math.round((ms / 1000) - Math.floor(minutes * 60))
+    return `${minutes} min, ${seconds} sec`
+}
 
 // TODO: Permissions check
 export const roulette: Command = {
@@ -11,12 +20,6 @@ export const roulette: Command = {
     description: 'Kicks a random person from the voice channel you\'re in, excluding the bot.',
     execute: async (bot: Rental.Client, msg: Rental.Message) => {
         const response = new Rental.EmbedBuilder()
-
-        // Check if the user has an existing cooldown
-        const existingCooldown = cooldownMap.get(msg.author.id)
-        if(existingCooldown) {
-            
-        }
 
         // Find the channel that the user is in
         const userInfo = getUserChannel(msg.author.id)
@@ -28,6 +31,25 @@ export const roulette: Command = {
             await Rental.createMessage(bot.token!, msg.channel_id, [response.data], Rental.toMessageReference(msg))
             return
         }
+
+        // Check if the user has an existing cooldown
+        const existingCooldown = cooldownMap[msg.author.id]
+        if(existingCooldown) {
+            // Check the timer on the cooldown
+            const time = Date.now() - existingCooldown
+
+            if(time <= ROULETTE_COOLDOWN) {
+                const remainingTime = toMinStr(ROULETTE_COOLDOWN - time)
+                response
+                    .setColor(0xff0000)
+                    .setDescription(`:x: You\'re still on cooldown for ${remainingTime}`)
+                await Rental.createMessage(bot.token!, msg.channel_id, [response.data], Rental.toMessageReference(msg))
+                return
+            }
+        }
+
+        cooldownMap[msg.author.id] = Date.now()
+        saveCooldownMap()
 
         // Get the users in the current channel
         const usersInChannel = getUsersInChannel(userInfo.channelId)!

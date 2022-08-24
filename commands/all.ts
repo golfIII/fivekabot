@@ -11,4 +11,8 @@ export * from './commands/music/music.ts'
 
 export * from './commands/help.ts'
 
+/* To add your own commands, write:
+export * from './commands/4fun/{COMMAND_FILE_NAME}'
+*/
+
 

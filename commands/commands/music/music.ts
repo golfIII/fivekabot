@@ -8,6 +8,7 @@ import {
     getGuildQueue, getGuildPlayer, 
     setGuildQueue, setGuildPlayer
 } from '@store/queues.ts'
+import { tserror, tslog } from '../../../util/tslog.ts'
 
 
 async function playQueue(msg: Rental.Message, guildId: string) {
@@ -33,7 +34,7 @@ async function playQueue(msg: Rental.Message, guildId: string) {
         response
             .setColor(0x2F3136)
             .setDescription(`:arrow_forward: Now playing: [${queue[0].title}](${queue[0].link}) (<@${queue[0].queuedBy}>)`)
-        await Rental.createMessage(Deno.env.get('BOT_TOKEN')!, msg.channel_id, [response.data], Rental.toMessageReference(msg))
+        await Rental.createMessage(Deno.env.get('TEST_TOKEN')!, msg.channel_id, [response.data], Rental.toMessageReference(msg))
     })
     connection.once('trackEnd', async (track: string | null) => {
         // Remove the track at the top & update the queue
@@ -51,7 +52,7 @@ async function playQueue(msg: Rental.Message, guildId: string) {
             response
                 .setColor(0x2F3136)
                 .setDescription(':white_check_mark: Finished playing!')
-            await Rental.createMessage(Deno.env.get('BOT_TOKEN')!, msg.channel_id, [response.data], Rental.toMessageReference(msg))
+            await Rental.createMessage(Deno.env.get('TEST_TOKEN')!, msg.channel_id, [response.data], Rental.toMessageReference(msg))
 
             player.player.disconnect()
             player.player.destroy()
@@ -65,7 +66,6 @@ async function playQueue(msg: Rental.Message, guildId: string) {
     
     connection.once('disconnected', async () => {
         // Clear the queue
-        console.log('disconnected')
 
         await player.player.stop()
         await player.player.destroy()
@@ -85,7 +85,7 @@ async function playQueue(msg: Rental.Message, guildId: string) {
         response
             .setColor(0xff0000)
             .setDescription(`:warning: Track stuck; attempting to resume`)
-        await Rental.createMessage(Deno.env.get('BOT_TOKEN')!, msg.channel_id, [response.data], Rental.toMessageReference(msg))
+        await Rental.createMessage(Deno.env.get('TEST_TOKEN')!, msg.channel_id, [response.data], Rental.toMessageReference(msg))
         await player.player.pause()
         await player.player.resume()
     })
@@ -127,7 +127,7 @@ async function loadAuthToken() {
         }))).json()
 
         if(response.error) {
-            console.error('Failed to get spotify auth key', response.error_description)
+            tslog(`Failed to get spotify auth key: ${response.error_description}`)
             return null
         }
 
@@ -159,7 +159,7 @@ async function getSpotifySong(songId: string, userId: string): Promise<Song | nu
     })).json()
 
     if(track.error) {
-        console.error('Failed to get spotify track', track.error_description)
+        tserror(`Failed to get spotify track: ${track.error_description}`)
         return null
     }
 
@@ -202,7 +202,7 @@ async function getSpotifyPlaylist(isAlbum: boolean, playlistId: string, userId: 
     })).json()
 
     if(playlist.error) {
-        console.error('Failed to get spotify playlist', playlist.error, playlist.error_description)
+        tserror(`Failed to get spotify playlist, ${playlist.error}: ${playlist.error_description}`)
         return null
     }
 
@@ -223,7 +223,7 @@ async function getSpotifyPlaylist(isAlbum: boolean, playlistId: string, userId: 
         // Load the track and then attempt to add it to the mappedTracks array
         const result = await cluster.rest.loadTracks(`ytsearch:${queryString}`)
         if(result.loadType === 'NO_MATCHES' || result.loadType === 'LOAD_FAILED') {
-            console.error('Failed to load track', queryString, 'from playlist', playlistId)
+            tserror(`Failed to load track ${queryString} from playlist ${playlistId}`)
             songResult = null
         } else {
             songResult = {
@@ -263,7 +263,7 @@ async function parseLink(link: string, userId: string): Promise<Song[] | null> {
 
         // Before doing anything, check if it's a youtube short; we can't play this format yet.
         if(link.includes('/shorts/')) {
-            console.error('We don\'t support youtube shorts')
+            tserror('We don\'t support youtube shorts')
             return null
         }
 
@@ -309,7 +309,7 @@ async function parseLink(link: string, userId: string): Promise<Song[] | null> {
                 const typeTest = typeRegex.exec(link)
 
                 if(!typeTest) {
-                    console.error('Unknown spotify resource')
+                    tserror('Unknown spotify resource')
                     return null
                 }
                 const resourceId = typeTest[2]
@@ -318,7 +318,7 @@ async function parseLink(link: string, userId: string): Promise<Song[] | null> {
                 // This is very slow
                 const tracks = await getSpotifyPlaylist(type, resourceId, userId)
                 if(!tracks) {
-                    console.error('Failed to load spotify playlist', link)
+                    tserror(`Failed to load spotify playlist, ${link}`)
                     return null
                 }
 
@@ -329,7 +329,7 @@ async function parseLink(link: string, userId: string): Promise<Song[] | null> {
                 const trackId = trackRegex.exec(link)![1]
                 const track = await getSpotifySong(trackId, userId)
                 if(!track) {
-                    console.error('Failed to load spotify track', link)
+                    tserror(`Failed to load spotify track, ${link}`)
                     return null
                 }
                 songs.push(track)

@@ -4,6 +4,7 @@ import { APIBase, ErrorMessage, logErrorMessage } from './constants.ts'
 
 import { GuildMember } from '../types/guild.ts'
 import { Rental } from '../../deps.ts'
+import { tslog } from '../../util/tslog.ts'
 
 // Moves a member to another voice channel
 // https://discord.com/developers/docs/resources/guild#modify-guild-member
@@ -27,7 +28,7 @@ export async function moveGuildMember(token: string, guildId: string, userId: st
 
     if(json['code']) {
         logErrorMessage('Move Guild Member', json as ErrorMessage)
-        console.log(json['errors'])
+        tslog(JSON.stringify(json['errors'], null, 4))
         return null
     }
 

@@ -3,6 +3,7 @@
 import { APIBase, ErrorMessage, logErrorMessage } from './constants.ts'
 import { Embed, Message, MessageReference } from '../types/message.ts'
 import { MessageComponent } from '../types/interaction.ts'
+import { tserror } from '../../util/tslog.ts'
 
 // Converts a Message to a MessageReference
 export function toMessageReference(msg: Message) {
@@ -29,7 +30,7 @@ export async function createMessage(token: string, channelId: string, message: s
     if(!Array.isArray(message) && typeof message === 'string') {
         // There are limits to the amount of content within messages
         if(message.length > 2000) {
-            console.error('Attempted to send message content with more than 2000 characters')
+            tserror('Attempted to send message content with more than 2000 characters')
             return null
         } 
         postBody['content'] = message

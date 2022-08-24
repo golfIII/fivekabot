@@ -1,4 +1,7 @@
 // Discord API base. Forced to be version 10.
+
+import { tserror } from "../../util/tslog.ts"
+
 // https://discord.com/developers/docs/reference#api-versioning
 export const APIBase = 'https://discord.com/api/v10'
 
@@ -11,6 +14,6 @@ export interface ErrorMessage {
 }
 
 export function logErrorMessage(methodName: string, msg: ErrorMessage) {
-    console.error(`${methodName} failed with code ${msg.code}: ${msg.message}`)
-    console.error('Inner contents', msg.errors)
+    tserror(`${methodName} failed with code ${msg.code}: ${msg.message}`)
+    tserror(`Inner contents, ${JSON.stringify(msg, null, 4)}`)
 }

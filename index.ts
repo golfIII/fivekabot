@@ -2,6 +2,8 @@ import { Rental, Lavadeno } from '@base/deps.ts'
 import { initVoiceStates, updateVoiceStates } from '@store/voice_state.ts'
 import { initMusic, cluster } from '@store/queues.ts'
 import { commands, checkCommands } from '@commands/handler.ts'
+import { tslog } from '@util/tslog.ts' 
+
 import * as Commands from '@commands/all.ts'
 
 // Setup the command structure
@@ -9,7 +11,6 @@ for(const commandName of Object.keys(Commands)) {
     // @ts-ignore
     commands.push(Commands[commandName])
 }
-console.log('Loaded commands', commands)
 
 
 // Initialize the music players
@@ -22,7 +23,7 @@ export const bot = new Rental.Client(
 )
 
 bot.on(Rental.DispatchEvent.Ready, () => {
-    console.log('Rental client online')
+    tslog('Rental client online')
     // Connect the our lavalink node to allow for playing
     cluster.connect(BigInt(bot.id!))
 })
@@ -59,11 +60,11 @@ bot.on(Rental.DispatchEvent.InteractionCreate, (body: Rental.Interaction) => {
         // TODO: Split this up into different handlers, maybe have one from ./commands/commands/music?
         switch(body.data.custom_id) {
             case 'QUEUE_NEXT_PAGE': {
-                console.log('next page requested')
+                tslog('next page requested')
                 break
             }
             case 'QUEUE_PREVIOUS_PAGE': {
-                console.log('previous page requested')
+                tslog('previous page requested')
                 break
             }
             default: break
@@ -71,7 +72,7 @@ bot.on(Rental.DispatchEvent.InteractionCreate, (body: Rental.Interaction) => {
     }
 })
 
-await bot.login(Deno.env.get('BOT_TOKEN')!, Rental.LoginReason.Identify, {
+await bot.login(Deno.env.get('TEST_TOKEN')!, Rental.LoginReason.Identify, {
     activities: [{
         name: `${Deno.env.get('COMMAND_PREFIX')}help`,
         type: Rental.ActivityType.Listening,

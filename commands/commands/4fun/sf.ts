@@ -21,12 +21,7 @@ export const sf: Command = {
             .setTitle('Kyle')
             .setURL('https://dungeon.report/ps/4611686018438498781')
             .setImage('https://www.bungie.net/common/destiny2_content/icons/bf9b9247278e8f8186b75fd1577e665f.jpg')
-        const proph = new Rental.EmbedBuilder()
-            .setColor(0x2F3136)
-            .setTitle('Kyle')
-            .setURL('https://dungeon.report/ps/4611686018438498781')
-            .setImage('https://www.bungie.net/common/destiny2_content/icons/092f537b01b33598f0434ba04894aa72.jpg') 
         await Rental.createMessage(bot.token!, 
-            msg.channel_id, [duality.data, grasp.data, pit.data, proph.data], Rental.toMessageReference(msg))
+            msg.channel_id, [duality.data, grasp.data, pit.data], Rental.toMessageReference(msg))
     }
 }

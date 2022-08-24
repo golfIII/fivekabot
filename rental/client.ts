@@ -1,4 +1,6 @@
 import { Rental } from '../deps.ts'
+/* WARNING: Tslog is a client side function; we're importing it into the lib here... */
+import { tserror, tslog } from '../util/tslog.ts'
 import { getGatewayBot } from './api/gateway.ts'
 
 import { Opcode, DispatchEvent, Payload } from './types/payload.ts'
@@ -45,20 +47,17 @@ export class Client {
 
     private async sendHb() {
         if(!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('Attempted to send a heartbeat to a closed websocket')
+            tserror('Attempted to send a heartbeat to a closed websocket')
             Deno.exit()
         }
 
         if(!this.lifeline.hbAckedLast) {
-            console.error('Zombified connection')
+            tserror('Zombified connection')
             // Attempt to reconnect and resume
             this.ws.close(3000, 'Zombified connection')
-            console.log('Zombified connection')
             await this.login(this.lifeline.token!, LoginReason.Resume)
             return
         }
-
-        // console.log('Hb sent at', new Date())
 
         const heartbeat: Payload = {
             op: Opcode.Heartbeat,
@@ -72,7 +71,7 @@ export class Client {
     }
 
     private handleSocketOpen(ev: Event) {
-        console.log('WebSocket successfully opened')
+        tslog('WebSocket successfully opened')
     }
 
     private handleDispatch(payload: Payload) {
@@ -86,7 +85,7 @@ export class Client {
                 break
             }
             default: {
-                console.log('Dispatch event', payload.t)
+                tslog(`Dispatch event ${JSON.stringify(payload.t, null, 4)}`)
                 const cb = this.eventHandlers.get(payload.t!)
                 if(cb) cb(payload.d)
                 break
@@ -137,7 +136,7 @@ export class Client {
                     // Reconnect and resume
 
                     this.ws.close(3001, 'Reconnect and resume requested (Opcode.Reconnect)')
-                    console.log('Reconnect and resume requested (Opcode.Reconnect)')
+                    tslog('Reconnect and resume requested (Opcode.Reconnect)')
                     await this.login(this.lifeline.token!, LoginReason.Resume)
                     break
                 }
@@ -148,8 +147,14 @@ export class Client {
                     setTimeout(async () => {
                         // The payload data is a boolean saying if we can resume or not
                         const reason = (payload.d) ? LoginReason.Resume : LoginReason.Identify
-                        console.log('Invalid Session (Opcode.InvalidSession)')
-                        await this.login(this.lifeline.token!, reason)
+                        tslog('Invalid Session (Opcode.InvalidSession)')
+                        await this.login(this.lifeline.token!, reason, {
+                            activities: [{
+                                name: `${Deno.env.get('COMMAND_PREFIX')}help`,
+                                type: Rental.ActivityType.Listening,
+                            }],
+                            status: Rental.StatusType.Online
+                        })
                     }, (Math.random() + 1) * 2500)
                     break  
                 }
@@ -167,7 +172,7 @@ export class Client {
                     // Now we need to identify OR resume, based on the LoginReason
                     if(reason === LoginReason.Identify) {
                         // Identify
-                        console.log('Identifying')
+                        tslog('Identifying')
                         // TODO: See the full identification payload here:
                         // https://discord.com/developers/docs/topics/gateway#identify
                         const identify: Payload = {
@@ -192,11 +197,11 @@ export class Client {
                         // start of the bot.
                     } else {
                         if(!this.lifeline.sessionId) {
-                            console.error('Attempted to resume prior to sessionId setup')
+                            tserror('Attempted to resume prior to sessionId setup')
                             return
                         }
                         // Resume
-                        console.log('Resuming with lifeline', this.lifeline)
+                        tslog(`Resuming with lifeline, ${JSON.stringify(this.lifeline, null, 4)}`)
                         const resume: Payload = {
                             op: Opcode.Resume,
                             d: {
@@ -216,40 +221,53 @@ export class Client {
                     break
                 }
                 default: {
-                    console.error('Unhandled gateway opcode', payload.op)
+                    tslog(`Unhandled gateway opcode, ${payload.op}`)
                     break
                 }
             }
         }
         this.ws.onerror = async (ev: Event | ErrorEvent) => {
-            console.error('WebSocket error:', ev)
+            tserror(`WebSocket error: ${JSON.stringify(ev, null, 4)}`)
             // Attempt to reopen
             if(!this.lifeline || !this.lifeline.token) {
-                console.error('Token doesn\'t exist on lifeline')
-                console.error('Lifeline', this.lifeline)
+                tserror('Token doesn\'t exist on lifeline')
+                tserror(`Lifeline, ${JSON.stringify(this.lifeline, null, 4)}`)
                 return
             }
             
             await this.login(this.lifeline.token, LoginReason.Resume)
         }
         this.ws.onclose = async (ev: CloseEvent) => {
-            console.log('WebSocket closed:', ev)
+            tslog(`WebSocket closed: ${JSON.stringify(ev, null, 4)}`)
 
             if(!this.lifeline || !this.lifeline.token) {
-                console.error('Token doesn\'t exist on lifeline')
-                console.error('Lifeline', this.lifeline)
+                tserror('Token doesn\'t exist on lifeline')
+                tserror(`Lifeline, ${JSON.stringify(this.lifeline, null, 4)}`)
                 return
             }
 
-            if(ev.code === 1001) {
-                await this.login(this.lifeline.token, LoginReason.Identify)
+            const codeClass = Math.floor(ev.code / 1000)
+
+            if(codeClass === 1) {
+                // 1000 close code; session is not preserved, so we need to reidentify
+                await this.login(this.lifeline.token, LoginReason.Identify, {
+                    activities: [{
+                        name: `${Deno.env.get('COMMAND_PREFIX')}help`,
+                        type: Rental.ActivityType.Listening,
+                    }],
+                    status: Rental.StatusType.Online
+                })
+            } else if(codeClass === 4) {
+                // Closed for a discord reason; attempt Resume
+                await this.login(this.lifeline.token, LoginReason.Resume)
             }
+            // Any other error is regarded as unhandled.
         }
     }
 
     public sendPayload(payload: string) {
         if(!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            console.error('Attempted to send a payload to a closed websocket')
+            tserror('Attempted to send a payload to a closed websocket')
             return
         }
 

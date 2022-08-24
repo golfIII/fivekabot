@@ -3,6 +3,7 @@
         "@store/": "./stores/",
         "@rental/": "./rental/",
         "@commands/": "./commands/",
-        "@base/": "./"
+        "@base/": "./",
+        "@util/": "./util/"
     }
 }
